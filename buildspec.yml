@@ -1,0 +1,45 @@
+version: 0.2
+
+env:
+  variables:
+    IMAGE: "flaskapp"
+    ECR_REGISTRY_URL: ""
+    ECR_IMAGE: ""
+  parameter-store:
+    AWS_ACCOUNT_ID: /sample-python-app/AWS_Account_Id
+
+phases:
+  install:
+    runtime-versions:
+      python: latest
+
+  pre_build:
+    commands:
+      #- pip install -r requirements.txt
+      - echo "Login to ECR"
+      - ECR_REGISTRY_URL="$AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com"
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY_URL
+
+  build:
+    commands:
+      - echo "Build started on `date`"
+      - echo "Build Docker Image"
+      - docker images
+      - docker build -t $IMAGE.$CODEBUILD_BUILD_NUMBER .
+      - docker images
+      - echo "TAG Docker Image"
+      - ECR_IMAGE="$ECR_REGISTRY_URL/$IMAGE:latest"
+      - docker tag $IMAGE.$CODEBUILD_BUILD_NUMBER:latest $ECR_IMAGE
+      - docker images
+
+  post_build:
+    commands:
+      - echo "Build started on `date`"
+      - echo "Push Docker Image"
+      - docker images
+      - docker push $ECR_IMAGE
+      - echo "Successfully Pushed Image to ECR"
+
+artifacts:
+  files: "**/*"
+  name: FlaskApp-Artifacts
